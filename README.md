@@ -1,5 +1,6 @@
 # go-redis
 implement redis by go
+参考：
 
 # 编码流程
 ### Part Ⅰ 项目的基本内容
@@ -75,8 +76,31 @@ type readState struct {
 
 其他的流程可以按照根据代码进行分析。
 
+# Part Ⅳ 实现 Redis 内存数据库
 
+`command.go`：定义了全局的命令处理函数集合 cmdTable，是一个 map 类型，同时注意，这个 map 并不需要保证并发写安全，所以只需要用一个普通的map就可以，因为所有的map中的内容都会在程序启动的初始化过程中，插入完成。普通的map并发读是没有问题的。
 
+`dict.go`：定义 Dict 类型的接口，可以扩展底层的实现
+
+`sync_dict.go`：封装 go 提供的 sync.Map 作为 Dict 的一个具体实现
+
+`db.go`：redis中是支持多个 DB 的，所以这里是一个具体的 DB 实现，核心函数是 Exec 函数，该函数从 cmdTable 取出具体的执行函数。其他的实现则是存取、删除数据的操作函数，但是要注意的是，这里的数据进行了接口的封装是：DataEntity，而不是具体的数据类型，比如string，int之类的。
+
+`keys.go`： 实现 Keys 操作的一些命令，比如 DEL、KEYS、FLUSHDB、TYPE、RENAME 等
+
+`string.go`：实现字符串操作的命令，比如 SET、GET、SETNX 等
+
+`wildcard.go`：实现一个简单的正则表示式匹配，核心步骤分为 Compile 和 Match，使用动态规划来实现
+
+`database.go`：数据库中实现了 Database 的接口，需要特殊的处理的是选择哪一个 DB 进行操作，然后调用具体的 db 的 Exec 函数就可以了。
+
+可以使用网络调试助手工具，也可以直接使用 redis-cli 工具
+
+测试命令：
+
+设置 key 和 value：`*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n`
+
+获取 key 中设置的值：`*2\r\n$3\r\nGET\r\n$3\r\nkey\r\n`
 
 
 
