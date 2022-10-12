@@ -1,9 +1,10 @@
 # go-redis
 implement redis by go
+
 参考：
 
 # 编码流程
-### Part Ⅰ 项目的基本内容
+## Part Ⅰ 项目的基本内容
 配置文件：`config/config.go`，用于配置的管理，其中用到了反射的方式来实现文件配置和结构体的配置对应设置的功能
  
 反射的设置的过程：
@@ -18,7 +19,7 @@ bool原子操作：`lib/sync/atomic/bool.go` 因为在 go 标准库中没有提�
 
 wait操作封装：`lib/sync/wait/wait.go` 这个和 go 标准库中的 wait 是差不多的，多提供了一个超时退出的等待机制
 
-### Part Ⅱ TCP 服务器的实现
+## Part Ⅱ TCP 服务器的实现
 
 处理函数接口：`interface/tcp/handler.go`，主要是处理连接函数，以及关闭函数
 
@@ -29,7 +30,7 @@ Echo 处理Handle：`tcp/echo.go` 这个是实现一个回复Handler的示例函
 
 主函数：`main.go` ：进行配置读入操作，调用 tcp 的监听和 handler 函数。
 
-### Part Ⅲ Redis 的通信协议 RESP 实现
+## Part Ⅲ Redis 的通信协议 RESP 实现
 
 首先要明确 RESP 的协议格式，分为如下五种：
 - 正常回复：以 `+` 号开头，`\r\n` 结尾的字符串形式
@@ -76,7 +77,7 @@ type readState struct {
 
 其他的流程可以按照根据代码进行分析。
 
-# Part Ⅳ 实现 Redis 内存数据库
+## Part Ⅳ 实现 Redis 内存数据库
 
 `command.go`：定义了全局的命令处理函数集合 cmdTable，是一个 map 类型，同时注意，这个 map 并不需要保证并发写安全，所以只需要用一个普通的map就可以，因为所有的map中的内容都会在程序启动的初始化过程中，插入完成。普通的map并发读是没有问题的。
 
@@ -101,6 +102,24 @@ type readState struct {
 设置 key 和 value：`*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n`
 
 获取 key 中设置的值：`*2\r\n$3\r\nGET\r\n$3\r\nkey\r\n`
+
+## Part Ⅴ 实现 AOF
+
+AOF 的全称是 AppendOnlyFile，用于 Redis 的持久化。
+
+核心是实现了 `aof.go` 这么一个文件，实现了打开一个外部文件，写入 AOF 内容，和加载 AOF 内容的功能。其中加载 `LoadAof` 函数复用了之前的解析函数 `ParseStream`。
+
+打开该功能，后台会启动一个 `handleAof` 的程序监听 `aofChan` 管道得到需要写入的数据信息，其中需要对是否发生 DB 的切换进行特殊处理，如果发生了 DB 的切换，则需要多写入切换 DB 的命令到 AOF 文件中。
+
+其中还做了一个小的转换，在 db.go 中的 `addAof` 函数是 `func(CmdLine)` ， 而在 `aof.go` 中的 `AddAof` 函数是 `func(dbIndex int, cmd CmdLine)`，所以在 `database.go` 文件中对数据库进行初始化的时候进行了转换操作。
+
+这样做的好处是，将对象不关心的数据进行剥离，让每一个对象实体只看到自己需要的内容。比如对于 `db` 来说，我只需要知道怎么写入 AOF 就可以了，我当前的数据库 index 是多少我并不知关心，而且我也无从得知，所以交给上层的 database 来管理数据库的 index 就可以了。
+
+
+
+
+
+
 
 
 

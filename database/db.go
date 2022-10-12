@@ -9,13 +9,15 @@ import (
 )
 
 type DB struct {
-	index int
-	data  dict.Dict
+	index  int
+	data   dict.Dict
+	addAof func(CmdLine)
 }
 
 func makeDB() *DB {
 	db := &DB{
-		data: dict.NewSyncDict(),
+		data:   dict.NewSyncDict(),
+		addAof: func(CmdLine) {},
 	}
 	return db
 }
